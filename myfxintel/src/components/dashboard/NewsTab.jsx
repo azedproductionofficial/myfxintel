@@ -226,12 +226,14 @@ const ENGINE_ORDER = ['fomc', 'cpi', 'nfp', 'ppi', 'geo', 'gdp', 'pmi']
 
 // ─── SCORE → VERDICT ─────────────────────────────────────────────────────────
 function getVerdict(score) {
-  if (score >= 6) return { label: '🟢 BULLISH', color: '#10b981', action: 'Run EA — strong gold tailwinds', outlook: 'Gold likely to push higher' }
-  if (score >= 3) return { label: '🟡 CAUTIOUS BULLISH', color: '#22c55e', action: 'Run EA with reduced size', outlook: 'Mild bullish bias' }
-  if (score >= 1) return { label: '⚪ NEUTRAL', color: '#f59e0b', action: 'Wait for confirmation', outlook: 'No strong bias' }
-  if (score >= -2) return { label: '⚪ NEUTRAL', color: '#f59e0b', action: 'Wait for confirmation', outlook: 'No strong bias' }
-  if (score >= -5) return { label: '🟡 CAUTIOUS', color: '#f59e0b', action: 'Reduce size or skip', outlook: 'Mild bearish pressure' }
-  return { label: '🔴 SKIP', color: '#ef4444', action: 'Skip trading today', outlook: 'Strong headwinds for gold' }
+  if (score >= 8)  return { label: '🟢 STRONG BUY',  color: '#10b981', action: 'Run EA — strong gold tailwinds',       outlook: 'Gold strongly bullish — high conviction' }
+  if (score >= 4)  return { label: '🟢 BUY',          color: '#22c55e', action: 'Run EA with normal size',              outlook: 'Gold bullish bias this session' }
+  if (score >= 1)  return { label: '🟡 MILD BUY',     color: '#84cc16', action: 'Run EA with reduced size',             outlook: 'Mild bullish lean — stay cautious' }
+  if (score === 0) return { label: '⚪ NEUTRAL',       color: '#f59e0b', action: 'Wait for confirmation',                outlook: 'No strong bias — range likely' }
+  if (score >= -3) return { label: '⚪ NEUTRAL',       color: '#f59e0b', action: 'Wait for confirmation',                outlook: 'No strong bias' }
+  if (score >= -5) return { label: '🟡 MILD SELL',    color: '#f97316', action: 'Reduce size or skip',                  outlook: 'Mild bearish pressure on gold' }
+  if (score >= -8) return { label: '🔴 SELL',          color: '#ef4444', action: 'Skip or hedge — bearish conditions',  outlook: 'Gold under pressure this session' }
+  return               { label: '🔴 STRONG SELL',  color: '#dc2626', action: 'Skip trading today',                   outlook: 'Strong headwinds — do not trade' }
 }
 
 function scoreColor(s) {
