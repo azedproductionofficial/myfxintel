@@ -142,7 +142,15 @@ export default function IntelTab({ trades }) {
       const SHORT_TO_LONG = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday' }
       const byDate = {}
       trades.forEach(t => {
-        const dateStr = t.date || (t.closeDate ? t.closeDate.toISOString().slice(0,10) : null)
+        let dateStr = null
+        if (t.date && typeof t.date === 'string') {
+          dateStr = t.date
+        } else if (t.closeDate) {
+          const d = t.closeDate instanceof Date ? t.closeDate : new Date(t.closeDate)
+          if (!isNaN(d)) {
+            dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+          }
+        }
         if (!dateStr) return
         const dow = DAY_SHORT[new Date(dateStr + 'T12:00:00Z').getUTCDay()]
         if (SHORT_TO_LONG[dow] !== day) return
