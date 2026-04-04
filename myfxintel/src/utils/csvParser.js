@@ -44,6 +44,8 @@ function parseDate(str) {
 // ─── PARSE MYFXBOOK CSV ───────────────────────────────────────────────────────
 function parseMyfxbook(text) {
   const trades = [];
+  const deposits = [];
+  const withdrawals = [];
   const lines = text.split('\n');
 
   // Find header row
@@ -89,8 +91,17 @@ function parseMyfxbook(text) {
     const action = (cols[idx.action] || '').trim();
     const actionLower = action.toLowerCase();
 
-    // Skip deposits and withdrawals
-    if (actionLower === 'deposit' || actionLower === 'withdrawal' || actionLower === 'credit') continue;
+    // Capture deposits and withdrawals separately
+    if (actionLower === 'deposit' || actionLower === 'credit') {
+      const amount = parseFloat(cols[idx.profit]) || 0;
+      if (amount !== 0) deposits.push({ amount: Math.abs(amount), date: parseDate(cols[idx.closeDate]) });
+      continue;
+    }
+    if (actionLower === 'withdrawal') {
+      const amount = parseFloat(cols[idx.profit]) || 0;
+      if (amount !== 0) withdrawals.push({ amount: Math.abs(amount), date: parseDate(cols[idx.closeDate]) });
+      continue;
+    }
     // Only include Buy and Sell
     if (actionLower !== 'buy' && actionLower !== 'sell') continue;
 
@@ -120,12 +131,14 @@ function parseMyfxbook(text) {
     });
   }
 
-  return trades;
+  return { trades, deposits, withdrawals };
 }
 
 // ─── PARSE MT4/BLUEBERRY CSV ──────────────────────────────────────────────────
 function parseMT4(text) {
   const trades = [];
+  const deposits = [];
+  const withdrawals = [];
   const lines = text.split('\n');
 
   // Find 'Closed Transactions:' section
@@ -171,6 +184,12 @@ function parseMT4(text) {
     const type = (cols[2] || '').trim().toLowerCase();
 
     // Only real trades (buy or sell, not buy stop / sell stop / balance / cancelled)
+    if (type === 'balance' || type === 'credit') {
+      const amount = parseFloat(cols[13]) || 0;
+      if (amount > 0) deposits.push({ amount, date: parseDate(cols[1]) });
+      else if (amount < 0) withdrawals.push({ amount: Math.abs(amount), date: parseDate(cols[1]) });
+      continue;
+    }
     if (type !== 'buy' && type !== 'sell') continue;
 
     // Check if cancelled (close price column may say 'cancelled')
@@ -207,7 +226,7 @@ function parseMT4(text) {
     });
   }
 
-  return trades;
+  return { trades, deposits, withdrawals };
 }
 
 // ─── CSV LINE PARSER (handles quoted fields) ──────────────────────────────────
@@ -235,21 +254,26 @@ function parseCSVLine(line) {
 export function parseCSV(text) {
   const format = detectFormat(text);
 
-  let trades = [];
+  let result = { trades: [], deposits: [], withdrawals: [] };
   if (format === 'myfxbook') {
-    trades = parseMyfxbook(text);
+    result = parseMyfxbook(text);
   } else if (format === 'mt4') {
-    trades = parseMT4(text);
+    result = parseMT4(text);
   } else {
-    // Try both
-    trades = parseMyfxbook(text);
-    if (trades.length === 0) trades = parseMT4(text);
+    result = parseMyfxbook(text);
+    if (result.trades.length === 0) result = parseMT4(text);
   }
 
   // Sort by close date ascending
-  trades.sort((a, b) => a.closeDate - b.closeDate);
+  result.trades.sort((a, b) => a.closeDate - b.closeDate);
 
-  return { trades, format, count: trades.length };
+  return {
+    trades: result.trades,
+    deposits: result.deposits || [],
+    withdrawals: result.withdrawals || [],
+    format,
+    count: result.trades.length,
+  };
 }
 
 // ─── DERIVED ANALYTICS ────────────────────────────────────────────────────────
