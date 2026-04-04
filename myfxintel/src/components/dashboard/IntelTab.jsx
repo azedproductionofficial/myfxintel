@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 
-// ─── BASE HISTORICAL DATA ─────────────────────────────────────────────────────
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
 const BASE_HISTORY = {
   Monday: [
     { date: '2025-12-08', pnl: -58.98 }, { date: '2025-12-22', pnl: 47.71 },
@@ -46,7 +47,6 @@ const BASE_HISTORY = {
   ],
 }
 
-// ─── WEEK EVENT CONFIGS ───────────────────────────────────────────────────────
 const WEEK_CONFIGS = {
   '2026-03-09': {
     label: '09–13 Mar 2026', goldPrice: '$5,169',
@@ -81,15 +81,23 @@ const DECISION_FRAMEWORK = [
   { cond: 'Geopolitical shock', verdict: 'SKIP', color: '#ef4444' },
 ]
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+function getMondayOf(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+function toKey(date) { return date.toISOString().slice(0, 10) }
+function fmtDate(date) { return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) }
+function getDayDate(monday, idx) { const d = new Date(monday); d.setDate(d.getDate() + idx); return d }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
 function computeStats(entries) {
-  const real = entries.filter(e => e.pnl !== 0)
-  const wins = real.filter(e => e.pnl > 0).length
-  const losses = real.filter(e => e.pnl < 0).length
+  const wins = entries.filter(e => e.pnl > 0).length
+  const losses = entries.filter(e => e.pnl < 0).length
   const total = entries.reduce((s, e) => s + e.pnl, 0)
-  const wr = real.length > 0 ? Math.round((wins / real.length) * 100) : 0
+  const wr = entries.length > 0 ? Math.round((wins / entries.length) * 100) : 0
   let label = 'WEAK', color = '#ef4444'
   if (total > 200 || wr >= 80) { label = 'STRONG'; color = '#22c55e' }
   else if (total > 50 || wr >= 60) { label = 'GOOD'; color = '#22c55e' }
@@ -101,38 +109,22 @@ function verdictStyle(text) {
   if (!text) return {}
   const u = text.toUpperCase()
   if (u.includes('SKIP')) return { color: '#ef4444', label: 'SKIP' }
-  if (u.includes('CAUTIOUS') || u.includes('CAUTION')) return { color: '#f59e0b', label: 'CAUTIOUS' }
+  if (u.includes('CAUTIOUS')) return { color: '#f59e0b', label: 'CAUTIOUS' }
   if (u.includes('TRADE')) return { color: '#22c55e', label: 'TRADE' }
   return { color: '#94a3b8', label: 'ANALYSING' }
 }
 
-function fmtDate(date) {
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-function getDayDate(mondayDate, dayIndex) {
-  const d = new Date(mondayDate)
-  d.setDate(d.getDate() + dayIndex)
-  return d
-}
-
-function toKey(date) { return date.toISOString().slice(0, 10) }
-
 async function callClaude(messages, system) {
-  const res = await fetch('/api/claude', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, system }),
-  })
+  const res = await fetch('/api/claude', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages, system }) })
   const data = await res.json()
   return data.content?.[0]?.text || 'No response.'
 }
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function IntelTab({ trades, weekStart, weekPickerVal, onNavigateWeek, onPickerChange }) {
+export default function IntelTab({ trades }) {
   const today = new Date()
-  const todayDayIdx = Math.min(Math.max(today.getDay() - 1, 0), 4)
-  const [activeDay, setActiveDay] = useState(DAYS[todayDayIdx])
+  const [weekStart, setWeekStart] = useState(getMondayOf(today))
+  const [weekPickerVal, setWeekPickerVal] = useState(toKey(getMondayOf(today)))
+  const [activeDay, setActiveDay] = useState(DAYS[Math.min(Math.max(today.getDay() - 1, 0), 4)])
   const [analyses, setAnalyses] = useState({})
   const [loading, setLoading] = useState({})
   const [showHistory, setShowHistory] = useState(false)
@@ -142,7 +134,6 @@ export default function IntelTab({ trades, weekStart, weekPickerVal, onNavigateW
   const weekKey = toKey(weekStart)
   const weekConfig = WEEK_CONFIGS[weekKey]
 
-  // Merge CSV trades into history per day
   const getHistory = useCallback((day) => {
     const base = [...(BASE_HISTORY[day] || [])]
     if (trades && trades.length > 0) {
@@ -165,10 +156,24 @@ export default function IntelTab({ trades, weekStart, weekPickerVal, onNavigateW
     return base.sort((a, b) => a.date.localeCompare(b.date))
   }, [trades])
 
-  // Expose analyseAll to parent via window
+  const navigate = (dir) => {
+    const d = new Date(weekStart)
+    d.setDate(d.getDate() + dir * 7)
+    setWeekStart(d)
+    setWeekPickerVal(toKey(d))
+    setAnalyses({})
+  }
+
+  const handlePickerChange = (val) => {
+    setWeekPickerVal(val)
+    setWeekStart(getMondayOf(new Date(val)))
+    setAnalyses({})
+  }
+
   useEffect(() => {
     window.__analyseAll = () => DAYS.forEach(d => analyse(d))
-    return () => { delete window.__analyseAll }
+    window.__askAI = () => setShowAskAI(s => !s)
+    return () => { delete window.__analyseAll; delete window.__askAI }
   }, [weekStart, weekConfig])
 
   const analyse = useCallback(async (day, promptOverride) => {
@@ -183,25 +188,16 @@ export default function IntelTab({ trades, weekStart, weekPickerVal, onNavigateW
     const context = cfg?.context || ''
     const goldPrice = weekConfig?.goldPrice || 'unknown'
 
-    const prompt = promptOverride || `Today is ${dateStr}. Analyse the gold trading outlook for today.
-- Events today: ${events}
+    const prompt = promptOverride || `Today is ${dateStr}. Analyse the gold trading outlook.
+- Events: ${events}
 - ${context}
-- Gold price this week: ${goldPrice}
-- Historical ${day} stats: ${stats.wins}W/${stats.losses}L, total $${stats.total.toFixed(2)}, win rate ${stats.wr}%
+- Gold this week: ${goldPrice}
+- ${day} history: ${stats.wins}W/${stats.losses}L, $${stats.total.toFixed(2)}, ${stats.wr}% WR
 - Last 3 ${day}s: ${hist.slice(-3).map(e => `${e.date} $${e.pnl >= 0 ? '+' : ''}${e.pnl.toFixed(2)}`).join(', ')}
-- The trader runs a breakout EA (pending order strategy) on XAUUSD H1
+- Trader runs breakout EA on XAUUSD H1. Should they trade today? TRADE/CAUTIOUS/SKIP verdict. Max 150 words.`
 
-Should the trader run their EA today? Give a TRADE / CAUTIOUS / SKIP verdict with reasoning and timing. Max 150 words.`
-
-    const system = `You are a sharp, experienced gold (XAUUSD) trading analyst. Give direct, actionable daily verdicts for a breakout pending-order EA on XAUUSD H1.
-
-Format:
-1. **VERDICT: [TRADE / CAUTIOUS / SKIP]**
-2. **Why** in 2-3 sentences
-3. **Key risk to watch**
-4. **Timing tip**
-
-Under 150 words. Direct like a Bloomberg terminal analyst.`
+    const system = `You are a sharp gold (XAUUSD) trading analyst. Give direct actionable verdicts for a breakout EA on H1.
+Format: 1. **VERDICT: [TRADE/CAUTIOUS/SKIP]** 2. **Why** (2-3 sentences) 3. **Key risk** 4. **Timing tip**. Under 150 words.`
 
     try {
       const text = await callClaude([{ role: 'user', content: prompt }], system)
@@ -222,7 +218,6 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
   const activeDayDate = getDayDate(weekStart, dayIndex)
   const cfg = weekConfig?.days?.[activeDay]
 
-  // Day ranking
   const dayRanking = [...DAYS].sort((a, b) => {
     const at = BASE_HISTORY[a].reduce((s, e) => s + e.pnl, 0)
     const bt = BASE_HISTORY[b].reduce((s, e) => s + e.pnl, 0)
@@ -230,12 +225,21 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
   })
 
   return (
-    <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
       {/* ── SIDEBAR ── */}
       <aside style={{ width: '220px', background: '#0c1424', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 16px 8px', fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.14em' }}>
-          {weekConfig?.label || fmtDate(weekStart) + ' WEEK'}
+        {/* Week header + navigator */}
+        <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.14em', marginBottom: '8px' }}>
+            {weekConfig?.label || fmtDate(weekStart) + ' WEEK'}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button onClick={() => navigate(-1)} style={{ width: '26px', height: '26px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.06)', background: '#111c30', color: '#7a8ba8', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+            <input type="date" value={weekPickerVal} onChange={e => handlePickerChange(e.target.value)}
+              style={{ flex: 1, height: '26px', padding: '0 6px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.06)', background: '#111c30', color: '#e8edf5', fontSize: '10px', fontFamily: 'inherit', outline: 'none' }} />
+            <button onClick={() => navigate(1)} style={{ width: '26px', height: '26px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.06)', background: '#111c30', color: '#7a8ba8', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+          </div>
         </div>
 
         {/* Day buttons */}
@@ -267,7 +271,7 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span style={{ fontSize: '9px', fontWeight: 600, color: s.color, letterSpacing: '0.06em' }}>{s.label}</span>
                   <span style={{ fontSize: '9px', color: '#3d4f6a' }}>·</span>
-                  <span style={{ fontSize: '9px', color: s.total >= 0 ? '#10b981' : '#ef4444' }}>{s.total >= 0 ? '+' : ''}${Math.round(s.total)}</span>
+                  <span style={{ fontSize: '9px', color: s.total >= 0 ? '#10b981' : '#ef4444' }}>{s.total >= 0 ? '+' : '-'}${Math.abs(Math.round(s.total))}</span>
                   <span style={{ fontSize: '9px', color: '#3d4f6a' }}>·</span>
                   <span style={{ fontSize: '9px', color: '#7a8ba8' }}>{s.wr}%</span>
                 </div>
@@ -289,7 +293,7 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
                   <span style={{ fontSize: '11px', color: '#7a8ba8' }}>{day.slice(0, 3)}</span>
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: total >= 0 ? '#10b981' : '#ef4444' }}>
-                  {total >= 0 ? '+' : ''}${Math.round(total)}
+                  {total >= 0 ? '+' : '-'}${Math.abs(Math.round(total))}
                 </span>
               </div>
             )
@@ -304,7 +308,7 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
         {showAskAI && (
           <div style={{ background: '#0a0e1a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '12px', marginBottom: '16px', display: 'flex', gap: '10px' }}>
             <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)}
-              placeholder={`Ask about gold this week... e.g. "If FOMC is hawkish, should I trade Thursday?"`}
+              placeholder={`Ask about gold this week...`}
               style={{ flex: 1, background: '#111c30', border: '1px solid rgba(255,255,255,0.06)', color: '#e8edf5', padding: '10px', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical', minHeight: '50px', outline: 'none' }} />
             <button onClick={() => { if (customPrompt.trim()) { analyse(activeDay, customPrompt); setCustomPrompt(''); setShowAskAI(false) } }}
               style={{ background: '#d4a843', border: 'none', color: '#0a0e1a', padding: '10px 14px', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer', fontWeight: 700, alignSelf: 'flex-start' }}>ASK</button>
@@ -341,7 +345,7 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
           </button>
         </div>
 
-        {/* Stats row — 5 boxes */}
+        {/* 5 stat boxes */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px', marginBottom: '16px' }}>
           {[
             { label: 'Total P&L', val: (stats.total >= 0 ? '+' : '') + '$' + stats.total.toFixed(2), color: stats.total >= 0 ? '#10b981' : '#ef4444' },
@@ -357,7 +361,7 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
           ))}
         </div>
 
-        {/* Forward Analysis panel */}
+        {/* Forward Analysis */}
         <div style={{ background: '#0c1424', border: `1px solid ${analysis ? verdict.color + '55' : 'rgba(255,255,255,0.06)'}`, borderRadius: '12px', padding: '20px', marginBottom: '16px', minHeight: '170px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -370,7 +374,6 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
               </div>
             )}
           </div>
-
           {isLoading && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#7c3aed', padding: '16px 0' }}>
               <div style={{ width: '18px', height: '18px', border: '2px solid #7c3aed', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -408,12 +411,10 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
               <span style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.12em' }}>{activeDay.toUpperCase()} HISTORY</span>
               <span style={{ fontSize: '9px', padding: '1px 7px', borderRadius: '10px', background: '#111c30', color: '#7a8ba8', border: '1px solid rgba(255,255,255,0.06)' }}>{hist.length} weeks</span>
             </div>
-            <span style={{ fontSize: '10px', color: '#3d4f6a', transition: 'transform 0.2s', transform: showHistory ? 'rotate(180deg)' : 'none' }}>▾</span>
+            <span style={{ fontSize: '10px', color: '#3d4f6a', transform: showHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
           </button>
-
           {showHistory && (
             <div style={{ padding: '0 18px 16px' }}>
-              {/* Mini bar chart */}
               <div style={{ display: 'flex', gap: '3px', alignItems: 'flex-end', height: '48px', marginBottom: '12px' }}>
                 {hist.map((e, i) => {
                   const h = Math.max(3, Math.round((Math.abs(e.pnl) / maxAbs) * 44))
@@ -452,7 +453,6 @@ Under 150 words. Direct like a Bloomberg terminal analyst.`
               <div style={{ fontSize: '11px', color: '#3d4f6a' }}>No context for this week. Upload CSV or navigate to a known week.</div>
             )}
           </div>
-
           <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
             <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.12em', marginBottom: '12px' }}>DECISION FRAMEWORK</div>
             {DECISION_FRAMEWORK.map(r => (
