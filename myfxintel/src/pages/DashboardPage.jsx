@@ -24,6 +24,8 @@ export default function DashboardPage({ csvData, setCsvData }) {
   const [uploading, setUploading] = useState(false)
   const [uploadInfo, setUploadInfo] = useState(null)
   const [uploadError, setUploadError] = useState(null)
+  const [csvDeposits, setCsvDeposits] = useState([])
+  const [csvWithdrawals, setCsvWithdrawals] = useState([])
   const fileRef = useRef()
 
   const handleFile = async (file) => {
@@ -37,7 +39,9 @@ export default function DashboardPage({ csvData, setCsvData }) {
         setUploadError('No valid trades found. Check your CSV format.')
       } else {
         setCsvData(result.trades)
-        setUploadInfo({ count: result.count, format: result.format })
+        setCsvDeposits(result.deposits || [])
+        setCsvWithdrawals(result.withdrawals || [])
+        setUploadInfo({ count: result.count, format: result.format, filename: file.name })
       }
     } catch (e) {
       setUploadError('Failed to parse: ' + e.message)
@@ -53,14 +57,17 @@ export default function DashboardPage({ csvData, setCsvData }) {
     : BASE_STATS.allTimePnL
   const allWins = csvTrades.length > 0 ? csvTrades.filter(t => t.profit > 0).length : null
   const allWR = csvTrades.length > 0 ? Math.round((allWins / csvTrades.length) * 100) : BASE_STATS.allTimeWR
-  const roi = csvTrades.length > 0 ? ((totalPnL / BASE_STATS.deposited) * 100).toFixed(1) : BASE_STATS.roi.toFixed(1)
+  const totalDepositAmt = csvDeposits.length > 0
+    ? csvDeposits.reduce((s, d) => s + d.amount, 0)
+    : BASE_STATS.deposited
+  const roi = totalDepositAmt > 0 ? ((totalPnL / totalDepositAmt) * 100).toFixed(1) : BASE_STATS.roi.toFixed(1)
 
   const statBarItems = [
     { label: 'ALL-TIME P&L', val: (totalPnL >= 0 ? '+' : '') + '$' + Math.abs(totalPnL).toFixed(2), color: totalPnL >= 0 ? '#10b981' : '#ef4444', glow: true },
     { label: 'BEST DAY', val: BASE_STATS.bestDay, color: '#10b981' },
     { label: 'ALL-TIME WR', val: allWR + '%', color: '#f59e0b' },
     { label: 'THIS WEEK', val: '+$0.00', color: '#10b981' },
-    { label: 'DEPOSITED', val: '$' + BASE_STATS.deposited.toFixed(2), color: '#3b82f6' },
+    { label: 'DEPOSITED', val: '$' + totalDepositAmt.toFixed(2), color: '#3b82f6' },
     { label: 'ROI', val: '+' + roi + '%', color: '#10b981' },
     { label: 'INSTRUMENT', val: BASE_STATS.instrument, color: '#7a8ba8' },
   ]
@@ -150,7 +157,7 @@ export default function DashboardPage({ csvData, setCsvData }) {
         {activeTab === 'intel' && <IntelTab trades={csvData} />}
         {activeTab !== 'intel' && (
           <main className="grid-lines" style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
-            {activeTab === 'analytics' && <AnalyticsTab trades={csvData} />}
+            {activeTab === 'analytics' && <AnalyticsTab trades={csvData} deposits={csvDeposits} withdrawals={csvWithdrawals} filename={uploadInfo?.filename} />}
             {activeTab === 'news' && <NewsTab />}
             {activeTab === 'scanner' && <LiveScannerTab />}
             {activeTab === 'zones' && <ZonesTab trades={csvData} />}
