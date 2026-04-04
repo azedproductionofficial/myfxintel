@@ -110,11 +110,18 @@ function buildDayMap(csvTrades) {
   })
 
   // Group daily totals by day of week
+  // Sunday trades (gap open) are attributed to Monday — same market session
   const map = {}
   DAYS.forEach(d => { map[d] = [] })
 
   Object.entries(byDate).forEach(([dateStr, pnl]) => {
-    const dow = getDOWShort(dateStr)
+    let dow = getDOWShort(dateStr)
+    // Sunday gap trades → Monday
+    if (dow === 'Sun') {
+      const d = new Date(dateStr + 'T12:00:00Z')
+      d.setUTCDate(d.getUTCDate() + 1)
+      dow = 'Mon'
+    }
     const dayName = SHORT_TO_LONG[dow]
     if (dayName) map[dayName].push({ date: dateStr, pnl })
   })
