@@ -152,7 +152,9 @@ export default function IntelTab({ trades }) {
           }
         }
         if (!dateStr) return
-        const dow = DAY_SHORT[new Date(dateStr + 'T12:00:00Z').getUTCDay()]
+        let dow = DAY_SHORT[new Date(dateStr + 'T12:00:00Z').getUTCDay()]
+        // Sunday gap trades → Monday
+        if (dow === 'Sun') dow = 'Mon'
         if (SHORT_TO_LONG[dow] !== day) return
         if (!byDate[dateStr]) byDate[dateStr] = 0
         byDate[dateStr] += t.profit
