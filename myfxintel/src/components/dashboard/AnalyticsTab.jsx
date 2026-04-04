@@ -87,9 +87,22 @@ function buildDayMap(csvTrades) {
   }
 
   // Group CSV trades by date, sum P&L per date
+  // Use local date (not UTC) to avoid timezone day-shift bug
   const byDate = {}
   csvTrades.forEach(t => {
-    const dateStr = t.date || (t.closeDate ? t.closeDate.toISOString().slice(0,10) : null)
+    let dateStr = null
+    if (t.date && typeof t.date === 'string') {
+      dateStr = t.date
+    } else if (t.closeDate) {
+      const d = t.closeDate instanceof Date ? t.closeDate : new Date(t.closeDate)
+      if (!isNaN(d)) {
+        // Use local date to avoid UTC timezone shift changing the day
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const dd = String(d.getDate()).padStart(2, '0')
+        dateStr = `${y}-${m}-${dd}`
+      }
+    }
     if (!dateStr) return
     const profit = typeof t.profit === 'number' ? t.profit : parseFloat(t.profit) || 0
     if (!byDate[dateStr]) byDate[dateStr] = 0
