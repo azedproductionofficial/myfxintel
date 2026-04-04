@@ -582,7 +582,7 @@ function MonthlyAnalysis({ monthStats, totalDeposits }) {
 }
 
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
-export default function AnalyticsTab({ trades }) {
+export default function AnalyticsTab({ trades, deposits = [], withdrawals = [], filename }) {
   const usingCSV = trades && trades.length > 0
 
   const dayMap = useMemo(() => buildDayMap(usingCSV ? trades : null), [trades, usingCSV])
@@ -592,12 +592,17 @@ export default function AnalyticsTab({ trades }) {
   // Summary stats
   const allEntries = useMemo(() => DAYS.flatMap(d => dayMap[d] || []), [dayMap])
   const totalPnL = allEntries.reduce((s,e) => s+e.pnl, 0)
-  const totalWins = allEntries.filter(e => e.pnl > 0).length
   const winWeeks = Object.values(weekMap).filter(w => w.pnl > 0).length
   const totalWeeks = Object.keys(weekMap).length
   const weekWR = totalWeeks > 0 ? Math.round((winWeeks/totalWeeks)*100) : 0
-  const totalDeposits = 150.53
-  const roi = ((totalPnL / totalDeposits) * 100).toFixed(1)
+
+  // Financial figures — use real CSV deposits/withdrawals if available
+  const totalDeposits = deposits.length > 0 ? deposits.reduce((s,d) => s+d.amount, 0) : 150.53
+  const totalWithdrawals = withdrawals.reduce((s,w) => s+w.amount, 0)
+  const netPosition = totalDeposits + totalPnL - totalWithdrawals
+  const roi = totalDeposits > 0 ? ((totalPnL / totalDeposits) * 100).toFixed(1) : '0'
+  const depositCount = deposits.length > 0 ? deposits.length : 1
+  const withdrawalCount = withdrawals.length
 
   return (
     <div>
@@ -607,8 +612,8 @@ export default function AnalyticsTab({ trades }) {
           <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#111c30', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>📂</div>
           <div>
             <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.12em', marginBottom: '3px' }}>DATA SOURCE</div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{usingCSV ? 'CSV Upload — Live Data' : 'Base Data (Dec 2025 – Mar 2026)'}</div>
-            <div style={{ fontSize: '10px', color: '#3d4f6a', marginTop: '3px' }}>{usingCSV ? `${trades.length} trades imported · grouped by day` : 'Headway account · XAUUSD · Dec 2025–Mar 2026'}</div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{usingCSV ? (filename || 'CSV Upload') : 'Base Data (Dec 2025 – Mar 2026)'}</div>
+            <div style={{ fontSize: '10px', color: '#3d4f6a', marginTop: '3px' }}>{usingCSV ? 'XAUUSD' : 'Headway account · XAUUSD · Dec 2025–Mar 2026'}</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
@@ -616,6 +621,9 @@ export default function AnalyticsTab({ trades }) {
             { label: 'Total P&L', val: sgn(totalPnL), color: cl(totalPnL) },
             { label: 'Win Weeks', val: winWeeks+'/'+totalWeeks, color: '#f59e0b' },
             { label: 'Weekly WR', val: weekWR+'%', color: '#f59e0b' },
+            { label: 'Total Deposited', val: '$'+totalDeposits.toFixed(2), color: '#3b82f6' },
+            ...(usingCSV && totalWithdrawals > 0 ? [{ label: 'Withdrawals', val: '$'+totalWithdrawals.toFixed(2), color: '#ef4444' }] : []),
+            { label: 'Net P&L on Deposit', val: (totalPnL>=0?'+':'')+roi+'%', color: cl(totalPnL) },
           ].map(({ label, val, color }) => (
             <div key={label} style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em' }}>{label}</div>
@@ -626,19 +634,20 @@ export default function AnalyticsTab({ trades }) {
       </div>
 
       {/* Financial summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '10px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(155px,1fr))', gap: '10px', marginBottom: '24px' }}>
         {[
-          { label: 'TOTAL DEPOSITED', value: '$'+totalDeposits.toFixed(2), sub: '1 deposit', color: '#3b82f6', emoji: '⬇️' },
-          { label: 'TOTAL WITHDRAWN', value: '—', sub: 'Not tracked in base data', color: '#3d4f6a', emoji: '⬆️' },
+          { label: 'TOTAL DEPOSITED', value: '$'+totalDeposits.toFixed(2), sub: depositCount+' deposit'+(depositCount>1?'s':''), color: '#3b82f6', emoji: '⬇️' },
+          { label: 'TOTAL WITHDRAWN', value: totalWithdrawals > 0 ? '$'+totalWithdrawals.toFixed(2) : '—', sub: totalWithdrawals > 0 ? withdrawalCount+' withdrawal'+(withdrawalCount>1?'s':'') : (usingCSV ? 'None in CSV' : 'Not tracked in base data'), color: totalWithdrawals > 0 ? '#ef4444' : '#3d4f6a', emoji: '⬆️' },
           { label: 'TRADING P&L', value: sgn(totalPnL), sub: 'from EA trades only', color: cl(totalPnL), emoji: '📈' },
-          { label: 'RETURN ON DEPOSIT', value: (totalPnL>=0?'+':'')+roi+'%', sub: `$${totalPnL.toFixed(2)} on $${totalDeposits}`, color: cl(totalPnL), emoji: '🎯' },
+          { label: 'RETURN ON DEPOSIT', value: (totalPnL>=0?'+':'')+roi+'%', sub: `$${totalPnL.toFixed(2)} on $${totalDeposits.toFixed(2)}`, color: cl(totalPnL), emoji: '🎯' },
+          { label: 'NET POSITION', value: (netPosition>=0?'+$':'-$')+Math.abs(netPosition).toFixed(2), sub: 'deposits + P&L − withdrawals', color: cl(netPosition), emoji: '💼' },
         ].map(({ label, value, sub, color, emoji }) => (
           <div key={label} style={{ background: color+'0a', border: `1px solid ${color}30`, borderRadius: '12px', padding: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.12em' }}>{label}</div>
               <span style={{ fontSize: '14px' }}>{emoji}</span>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: 800, fontFamily: 'var(--font-display)', color, marginBottom: '4px' }}>{value}</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-display)', color, marginBottom: '4px' }}>{value}</div>
             <div style={{ fontSize: '10px', color: '#3d4f6a' }}>{sub}</div>
           </div>
         ))}
