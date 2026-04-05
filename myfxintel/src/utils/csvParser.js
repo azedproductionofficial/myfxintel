@@ -46,8 +46,8 @@ function parseMyfxbook(text) {
   const trades = [];
   const deposits = [];
   const withdrawals = [];
+  const openOrders = [];
   const lines = text.split('\n');
-
   // Find header row
   let headerIdx = -1;
   for (let i = 0; i < lines.length; i++) {
@@ -131,7 +131,66 @@ function parseMyfxbook(text) {
     });
   }
 
-  return { trades, deposits, withdrawals };
+  // ── PARSE OPEN ORDERS SECTION (after closed trades) ──────────────────
+  let openOrdersStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if ((lines[i] || '').trim().toLowerCase().startsWith('open orders')) {
+      openOrdersStart = i + 1;
+      break;
+    }
+  }
+  if (openOrdersStart > 0) {
+    // Find the header row for open orders
+    let openHeaderIdx = -1;
+    for (let i = openOrdersStart; i < Math.min(openOrdersStart + 5, lines.length); i++) {
+      const ll = (lines[i] || '').toLowerCase();
+      if (ll.includes('ticket') && ll.includes('symbol')) { openHeaderIdx = i; break; }
+    }
+    if (openHeaderIdx >= 0) {
+      const openHeaders = parseCSVLine(lines[openHeaderIdx]).map(h => h.trim().toLowerCase());
+      const oidx = {
+        ticket: openHeaders.indexOf('ticket'),
+        openDate: openHeaders.indexOf('open date'),
+        symbol: openHeaders.indexOf('symbol'),
+        action: openHeaders.indexOf('action'),
+        lots: openHeaders.indexOf('units/lots'),
+        openPrice: openHeaders.indexOf('open price'),
+        sl: openHeaders.indexOf('sl'),
+        tp: openHeaders.indexOf('tp'),
+      };
+      for (let i = openHeaderIdx + 1; i < lines.length; i++) {
+        const line = (lines[i] || '').trim();
+        if (!line) continue;
+        const cols = parseCSVLine(line);
+        if (cols.length < 5) continue;
+        const action = (cols[oidx.action] || '').trim();
+        const actionLower = action.toLowerCase();
+        if (!actionLower.includes('buy') && !actionLower.includes('sell')) continue;
+        const isBuyStop = actionLower === 'buy stop' || actionLower === 'buy limit';
+        const isSellStop = actionLower === 'sell stop' || actionLower === 'sell limit';
+        if (!isBuyStop && !isSellStop) continue; // only pending orders
+        openOrders.push({
+          ticket: (cols[oidx.ticket] || '').trim(),
+          openDate: parseDate(cols[oidx.openDate]),
+          symbol: (cols[oidx.symbol] || 'XAUUSD').trim().toUpperCase(),
+          action: isBuyStop ? 'Buy Stop' : 'Sell Stop',
+          lots: parseFloat(cols[oidx.lots]) || 0,
+          openPrice: parseFloat(cols[oidx.openPrice]) || 0,
+          sl: parseFloat(cols[oidx.sl]) || 0,
+          tp: parseFloat(cols[oidx.tp]) || 0,
+          source: 'myfxbook',
+        });
+      }
+    }
+  }
+
+  console.log('[csvParser] parseMyfxbook result:', trades.length, 'trades,', openOrders.length, 'open orders');
+  if (openOrders.length === 0) {
+    // Log what sections were found to debug
+    const sectionHeaders = lines.filter(l => l.trim().toLowerCase().match(/^(open orders|closed transactions|working orders)/));
+    console.log('[csvParser] Section headers found:', sectionHeaders);
+  }
+  return { trades, deposits, withdrawals, openOrders };
 }
 
 // ─── PARSE MT4/BLUEBERRY CSV ──────────────────────────────────────────────────
