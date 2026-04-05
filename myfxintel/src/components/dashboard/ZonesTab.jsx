@@ -295,10 +295,16 @@ Explanation`
         })}
       </div>
 
-      {/* ── RIGHT — Always-visible main panel ── */}
+      {/* RIGHT PANEL */}
       <div className="grid-lines" style={{ flex: 1, overflowY: 'auto', padding: '20px 22px' }}>
 
-        {/* ── PENDING ORDER SCOUT — always at top when orders exist ── */}
+        {/* ZONES V2 MARKER - teal bar confirms new version */}
+        <div style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', borderRadius: '8px', padding: '8px 14px', marginBottom: '16px', fontSize: '10px', color: '#fff', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontWeight: 700 }}>ZONES v2</span>
+          <span style={{ opacity: 0.7 }}>Pending orders always visible above zone summary</span>
+        </div>
+
+        {/* PENDING ORDER SCOUT - always at top */}
         {openOrders.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '4px' }}>
@@ -317,29 +323,29 @@ Explanation`
                 const isSelected = selectedZone?.min === bucket
 
                 let cardBg = 'transparent', cardBorder = 'rgba(255,255,255,0.06)'
-                if (isSelected) { cardBg = 'rgba(212,168,67,0.07)'; cardBorder = 'rgba(212,168,67,0.3)' }
+                if (isSelected) { cardBg = 'rgba(212,168,67,0.08)'; cardBorder = 'rgba(212,168,67,0.4)' }
                 else if (status) {
                   if (status.label === 'STRONG PROFIT') { cardBg = 'rgba(16,185,129,0.07)'; cardBorder = 'rgba(16,185,129,0.208)' }
                   else if (status.label === 'PROFIT')   { cardBg = 'rgba(16,185,129,0.03)'; cardBorder = 'rgba(16,185,129,0.145)' }
                   else if (status.label === 'DANGER')   { cardBg = 'rgba(239,68,68,0.07)';  cardBorder = 'rgba(239,68,68,0.208)' }
                 }
 
-                const zoneLabel = `$${bucket.toLocaleString()}–$${(bucket + 49).toLocaleString()}`
+                const zoneLabel = '$' + bucket.toLocaleString() + '\u2013$' + (bucket + 49).toLocaleString()
                 const zoneDesc = matchedZone
-                  ? `${zoneLabel} · ${matchedZone.trades} historical trades · ${matchedZone.winRate}% WR · ${fmtPnL(matchedZone.profit)} net`
-                  : `${zoneLabel} · No historical data for this price level`
+                  ? zoneLabel + ' \u00b7 ' + matchedZone.trades + ' historical trades \u00b7 ' + matchedZone.winRate + '% WR \u00b7 ' + fmtPnL(matchedZone.profit) + ' net'
+                  : zoneLabel + ' \u00b7 No historical data for this price level'
 
                 const verdictBadge = !matchedZone
                   ? { bg: '#6366f1', label: ' UNTESTED ZONE', textColor: '#fff' }
-                  : status?.label === 'FRESH'
-                  ? { bg: 'transparent', label: '◇ FRESH', textColor: '#e8edf5' }
+                  : status && status.label === 'FRESH'
+                  ? { bg: 'transparent', label: '\u25c7 FRESH', textColor: '#e8edf5' }
                   : status
-                  ? { bg: status.color, label: `${status.icon} ${status.label}`, textColor: '#fff' }
+                  ? { bg: status.color, label: status.icon + ' ' + status.label, textColor: '#fff' }
                   : null
 
                 return (
                   <div key={i}
-                    style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '12px', padding: '14px', cursor: matchedZone ? 'pointer' : 'default', transition: '0.15s' }}
+                    style={{ background: cardBg, border: '1px solid ' + cardBorder, borderRadius: '12px', padding: '14px', cursor: matchedZone ? 'pointer' : 'default', transition: '0.15s' }}
                     onClick={() => matchedZone && setSelectedZone(isSelected ? null : matchedZone)}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
@@ -361,7 +367,7 @@ Explanation`
                     <div style={{ display: 'flex', gap: '14px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                       {order.tp > 0 && <span style={{ fontSize: '9px', color: '#10b981' }}>TP: ${order.tp.toFixed(3)}</span>}
                       {order.sl > 0 && <span style={{ fontSize: '9px', color: '#ef4444' }}>SL: ${order.sl.toFixed(3)}</span>}
-                      <span style={{ fontSize: '9px', color: '#3d4f6a' }}>Zone history: click to drill down →</span>
+                      <span style={{ fontSize: '9px', color: '#3d4f6a' }}>Zone history: click to drill down &rarr;</span>
                     </div>
                   </div>
                 )
@@ -370,81 +376,65 @@ Explanation`
           </div>
         )}
 
-        {/* ── ZONE DETAIL — expands below pending orders when a zone is clicked ── */}
+        {/* ZONE DETAIL - appears below scout when zone clicked */}
         {selectedZone && (() => {
           const zone = selectedZone
           const status = getZoneStatus(zone.winRate, zone.trades, zone.profit)
           if (!status) return null
           return (
-            <div style={{ animation: 'fadeIn 0.2s ease', marginBottom: '20px' }}>
-              {/* Zone header card */}
-              <div style={{
-                background: zone.profit >= 0 ? 'rgba(16,185,129,0.07)' : 'rgba(239,68,68,0.07)',
-                border: `2px solid ${zone.profit >= 0 ? 'rgba(16,185,129,0.208)' : 'rgba(239,68,68,0.208)'}`,
-                borderRadius: '12px', padding: '18px', marginBottom: '14px'
-              }}>
+            <div style={{ animation: 'fadeIn 0.2s ease', marginBottom: '20px', border: '2px solid ' + (zone.profit >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'), borderRadius: '14px', overflow: 'hidden' }}>
+              {/* Zone header */}
+              <div style={{ background: zone.profit >= 0 ? 'rgba(16,185,129,0.07)' : 'rgba(239,68,68,0.07)', padding: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 800, color: '#e8edf5', marginBottom: '4px' }}>{zone.label}</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 800, color: '#e8edf5', marginBottom: '6px' }}>{zone.label}</div>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '15px', background: status.color, color: '#fff', fontSize: '11px', fontWeight: 700 }}>
                       {status.icon} {status.label}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
                     {[
                       { label: 'TOTAL TRADES', value: zone.trades, color: '#e8edf5' },
                       { label: 'WIN RATE', value: zone.winRate + '%', color: zone.winRate >= 60 ? '#10b981' : zone.winRate >= 40 ? '#f59e0b' : '#ef4444' },
                       { label: 'NET P&L', value: fmtPnL(zone.profit), color: zone.profit >= 0 ? '#10b981' : '#ef4444' },
                       { label: 'WINS', value: zone.wins, color: '#10b981' },
                       { label: 'LOSSES', value: zone.losses, color: '#ef4444' },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '8px', color: '#3d4f6a', letterSpacing: '0.1em' }}>{label}</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 800, color }}>{value}</div>
+                    ].map(function(s) { return (
+                      <div key={s.label} style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '8px', color: '#3d4f6a', letterSpacing: '0.1em' }}>{s.label}</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 800, color: s.color }}>{s.value}</div>
                       </div>
-                    ))}
+                    )})}
+                    <button onClick={() => setSelectedZone(null)} style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '10px', fontFamily: 'inherit', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#7a8ba8', cursor: 'pointer' }}>
+                      x Close
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ fontSize: '11px', color: '#7a8ba8', lineHeight: 1.7 }}>
-                    {status.label === 'STRONG PROFIT'
-                      ? 'This is one of your best zones. Historical data strongly supports letting EA orders run here.'
-                      : status.label === 'PROFIT'
-                      ? 'This zone shows consistent profitability. EA performs well here.'
-                      : status.label === 'DANGER'
-                      ? 'High-risk zone — EA struggles here. Consider skipping or reducing lot size.'
-                      : status.label === 'CAUTION'
-                      ? 'Mixed results. Watch price action carefully before letting EA run freely here.'
-                      : status.label === 'EXHAUSTED'
-                      ? 'High WR but eroding P&L — the edge may be fading. Monitor closely.'
-                      : 'Limited data. Early results noted but more trades needed before conclusions.'}
-                  </div>
-                  <button onClick={() => setSelectedZone(null)} style={{ marginLeft: '12px', padding: '5px 12px', borderRadius: '6px', fontSize: '10px', fontFamily: 'inherit', border: '1px solid rgba(255,255,255,0.06)', background: '#111c30', color: '#7a8ba8', cursor: 'pointer', flexShrink: 0 }}>
-                    ✕ Close
-                  </button>
+                <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '11px', color: '#7a8ba8', lineHeight: 1.7 }}>
+                  {status.label === 'STRONG PROFIT' ? 'This is one of your best zones. When EA places pending orders here, historical data strongly supports letting them run.'
+                    : status.label === 'PROFIT' ? 'This zone shows consistent profitability. EA performs well here.'
+                    : status.label === 'DANGER' ? 'High-risk zone — EA struggles here. Consider skipping or reducing lot size when gold trades at these levels.'
+                    : status.label === 'CAUTION' ? 'Mixed results in this zone. Watch price action carefully before letting EA run freely here.'
+                    : status.label === 'EXHAUSTED' ? 'Zone shows high WR but eroding P&L — the edge may be fading. Monitor closely.'
+                    : 'Limited data available. Early results noted but more trades needed before drawing conclusions.'}
                 </div>
               </div>
-
-              {/* Full trade table */}
-              <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.12em', marginBottom: '12px' }}>
-                  INDIVIDUAL TRADES IN THIS ZONE
-                </div>
+              {/* Trade table */}
+              <div style={{ background: '#0c1424', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.12em', marginBottom: '12px' }}>INDIVIDUAL TRADES IN THIS ZONE</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 90px 80px', gap: 0 }}>
-                  {['DATE', 'DIRECTION', 'OPEN PRICE', 'P&L'].map(h => (
+                  {['DATE', 'DIRECTION', 'OPEN PRICE', 'P&L'].map(function(h) { return (
                     <div key={h} style={{ fontSize: '8px', color: '#3d4f6a', padding: '4px 6px', borderBottom: '1px solid rgba(255,255,255,0.06)', letterSpacing: '0.08em' }}>{h}</div>
-                  ))}
-                  {[...zone.tradeList].sort((a, b) => {
+                  )})}
+                  {[...zone.tradeList].sort(function(a, b) {
                     const da = a.closeDate || a.openDate
                     const db = b.closeDate || b.openDate
                     const ta = da instanceof Date ? da.getTime() : new Date(da || 0).getTime()
                     const tb = db instanceof Date ? db.getTime() : new Date(db || 0).getTime()
                     return tb - ta
-                  }).map((t, i) => {
+                  }).map(function(t, i) {
                     const d = t.closeDate || t.openDate
-                    const dateStr = d instanceof Date
-                      ? d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-                      : (t.date || '')
+                    const dateStr = d instanceof Date ? d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : (t.date || '')
                     const isBuy = (t.action || '').toLowerCase() === 'buy'
                     const isWin = t.profit > 0
                     return (
@@ -462,7 +452,7 @@ Explanation`
           )
         })()}
 
-        {/* ── ZONE SUMMARY — always below ── */}
+        {/* ZONE SUMMARY - always below */}
         {zoneSummary && (
           <div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '14px' }}>Zone Summary</div>
@@ -483,23 +473,19 @@ Explanation`
                 <div style={{ fontSize: '10px', color: '#7a8ba8' }}>{zoneSummary.mostActive.trades} trades — highest volume</div>
               </div>
               <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>
-                  ${(Math.round(zoneSummary.worst.min / 100) * 100).toLocaleString()} Trap
-                </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#f59e0b', marginBottom: '3px' }}>⚠️ Key Insight</div>
+                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>${(Math.round(zoneSummary.worst.min / 100) * 100).toLocaleString()} Trap</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#f59e0b', marginBottom: '3px' }}>Key Insight</div>
                 <div style={{ fontSize: '10px', color: '#7a8ba8' }}>
                   {zoneSummary.worst.label} = {zoneSummary.worst.winRate}% WR danger zone.{' '}
-                  {(() => { const above = zones.find(z => z.min === zoneSummary.worst.min + 50); return above && above.winRate > 70 ? `Breakthrough to ${above.label} = ${above.winRate}% WR.` : 'Watch for breakout above.' })()}
+                  {(() => { const a = zones.find(z => z.min === zoneSummary.worst.min + 50); return a && a.winRate > 70 ? 'Breakthrough to ' + a.label + ' = ' + a.winRate + '% WR.' : 'Watch for breakout above.' })()}
                 </div>
               </div>
             </div>
-
-            {/* 3 Rules */}
             <div style={{ background: '#0c1424', border: '1px solid rgba(8,145,178,0.145)', borderRadius: '12px', padding: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <div style={{ fontSize: '9px', color: '#0891b2', letterSpacing: '0.12em', fontWeight: 700 }}>{rules.length} RULES FROM ZONE DATA</div>
                 <button onClick={generateAiRules} disabled={fetchingRules} className="action-btn" style={{ fontSize: '9px', padding: '3px 10px', borderRadius: '5px', fontFamily: 'inherit', border: '1px solid rgba(8,145,178,0.3)', background: 'rgba(8,145,178,0.08)', color: '#0891b2', cursor: fetchingRules ? 'not-allowed' : 'pointer' }}>
-                  {fetchingRules ? '⏳ Generating...' : '🤖 AI Refresh'}
+                  {fetchingRules ? 'Generating...' : 'AI Refresh'}
                 </button>
               </div>
               {fetchingRules && (
