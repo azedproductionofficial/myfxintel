@@ -302,6 +302,9 @@ Explanation`
         <div style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', borderRadius: '8px', padding: '8px 14px', marginBottom: '16px', fontSize: '10px', color: '#fff', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontWeight: 700 }}>ZONES v2</span>
           <span style={{ opacity: 0.7 }}>Pending orders always visible above zone summary</span>
+          <span style={{ marginLeft: 'auto', background: 'rgba(0,0,0,0.3)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+            {openOrders.length} pending orders detected
+          </span>
         </div>
 
         {/* PENDING ORDER SCOUT - always at top */}
