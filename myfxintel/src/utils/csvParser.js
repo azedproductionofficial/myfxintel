@@ -139,6 +139,7 @@ function parseMT4(text) {
   const trades = [];
   const deposits = [];
   const withdrawals = [];
+  const openOrders = [];
   const lines = text.split('\n');
 
   // Find 'Closed Transactions:' section
@@ -218,7 +219,7 @@ function parseMT4(text) {
       closePrice: parseFloat(cols[9]) || 0,
       commission: parseFloat(cols[10]) || 0,
       swap: parseFloat(cols[12]) || 0,
-      pips: 0, // MT4 doesn't include pips directly
+      pips: 0,
       profit,
       comment: cols[14]?.trim() || '',
       magicNumber: '',
@@ -226,7 +227,46 @@ function parseMT4(text) {
     });
   }
 
-  return { trades, deposits, withdrawals };
+  // ── PARSE OPEN TRADES / WORKING ORDERS ───────────────────────────────
+  let openStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const ll = lines[i].toLowerCase();
+    if (ll.startsWith('open trades:') || ll.startsWith('working orders:')) {
+      openStart = i + 1;
+      break;
+    }
+  }
+  if (openStart > 0) {
+    for (let i = openStart; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const ll = line.toLowerCase();
+      if (ll.startsWith('summary:') || ll.startsWith('closed p/l:')) break;
+      const cols = parseCSVLine(line);
+      if (cols.length < 8) continue;
+      const type = (cols[2] || '').trim().toLowerCase();
+      if (!type || type === 'type') continue;
+      const isPending = type.includes('buy stop') || type.includes('sell stop') || type.includes('buy limit') || type.includes('sell limit');
+      const isOpen = type === 'buy' || type === 'sell';
+      if (!isPending && !isOpen) continue;
+      const symbolRaw = (cols[4] || 'XAUUSD').trim().toUpperCase();
+      const symbol = symbolRaw.replace(/\.(PI|PRO|ECN|RAW|STD|MIN|FIX)$/i, '');
+      openOrders.push({
+        ticket: cols[0]?.trim() || '',
+        openDate: parseDate(cols[1]),
+        type: type,
+        action: isPending ? (type.includes('buy') ? 'Buy Stop' : 'Sell Stop') : (type === 'buy' ? 'Buy' : 'Sell'),
+        lots: parseFloat(cols[3]) || 0,
+        symbol,
+        openPrice: parseFloat(cols[5]) || 0,
+        sl: parseFloat(cols[6]) || 0,
+        tp: parseFloat(cols[7]) || 0,
+        source: 'mt4',
+      });
+    }
+  }
+
+  return { trades, deposits, withdrawals, openOrders }
 }
 
 // ─── CSV LINE PARSER (handles quoted fields) ──────────────────────────────────
@@ -271,6 +311,7 @@ export function parseCSV(text) {
     trades: result.trades,
     deposits: result.deposits || [],
     withdrawals: result.withdrawals || [],
+    openOrders: result.openOrders || [],
     format,
     count: result.trades.length,
   };
