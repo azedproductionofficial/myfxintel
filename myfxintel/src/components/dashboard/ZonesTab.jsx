@@ -298,165 +298,222 @@ Explanation`
       {/* ── RIGHT — Main content ── */}
       <div className="grid-lines" style={{ flex: 1, overflowY: 'auto', padding: '20px 22px' }}>
 
-        {/* Pending Order Scout */}
-        {openOrders.length > 0 && (
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '4px' }}>
-              Pending Order Scout
-            </div>
-            <div style={{ fontSize: '10px', color: '#7a8ba8', marginBottom: '14px' }}>
-              {openOrders.length} open orders from your CSV — assessed against price zone history
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {openOrders.slice(0, 22).map((order, i) => {
-                const price = order.openPrice || 0
-                const bucket = Math.floor(price / 50) * 50
-                const matchedZone = zones.find(z => z.min === bucket)
-                const status = matchedZone ? getZoneStatus(matchedZone.winRate, matchedZone.trades, matchedZone.profit) : null
-                const isBuy = (order.action || order.type || '').toLowerCase().includes('buy')
-
-                // Card color
-                let cardBg = 'transparent', cardBorder = 'rgba(255,255,255,0.06)'
-                if (status) {
-                  if (status.label === 'STRONG PROFIT') { cardBg = 'rgba(16,185,129,0.07)'; cardBorder = 'rgba(16,185,129,0.208)' }
-                  else if (status.label === 'PROFIT')   { cardBg = 'rgba(16,185,129,0.03)'; cardBorder = 'rgba(16,185,129,0.145)' }
-                  else if (status.label === 'DANGER')   { cardBg = 'rgba(239,68,68,0.07)';  cardBorder = 'rgba(239,68,68,0.208)' }
-                }
-
-                const zoneLabel = `$${bucket.toLocaleString()}–$${(bucket + 49).toLocaleString()}`
-                const zoneDesc = matchedZone
-                  ? `${zoneLabel} · ${matchedZone.trades} historical trades · ${matchedZone.winRate}% WR · ${fmtPnL(matchedZone.profit)} net`
-                  : `${zoneLabel} · No historical data for this price level`
-
-                const verdictBadge = !matchedZone
-                  ? { bg: '#6366f1', label: ' UNTESTED ZONE' }
-                  : status?.label === 'FRESH'
-                  ? { bg: 'transparent', label: `◇ ${status.label}`, color: '#e8edf5' }
-                  : status
-                  ? { bg: status.color, label: `${status.icon} ${status.label}` }
-                  : null
-
-                return (
-                  <div key={i} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '12px', padding: '14px', cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', color: isBuy ? '#10b981' : '#ef4444', background: isBuy ? 'rgba(16,185,129,0.125)' : 'rgba(239,68,68,0.125)' }}>
-                            {isBuy ? 'Buy Stop' : 'Sell Stop'}
-                          </span>
-                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5' }}>
-                            ${price.toFixed(2)}
-                          </span>
-                          <span style={{ fontSize: '9px', color: '#7a8ba8' }}>{(order.lots || 0.02).toFixed(2)} lots · {order.symbol || 'XAUUSD'}</span>
-                        </div>
-                        <div style={{ fontSize: '10px', color: '#7a8ba8' }}>Zone: {zoneDesc}</div>
-                      </div>
-                      {verdictBadge && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', background: verdictBadge.bg, color: verdictBadge.color || '#fff', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
-                          {verdictBadge.label}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: '14px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      {order.tp > 0 && <span style={{ fontSize: '9px', color: '#10b981' }}>TP: ${order.tp.toFixed(3)}</span>}
-                      {order.sl > 0 && <span style={{ fontSize: '9px', color: '#ef4444' }}>SL: ${order.sl.toFixed(3)}</span>}
-                      <span style={{ fontSize: '9px', color: '#3d4f6a' }}>Zone history: click to drill down →</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Zone Summary */}
-        {zoneSummary && (
-          <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '14px' }}>Zone Summary</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>Best Zone</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#10b981', marginBottom: '3px' }}>{zoneSummary.best.label}</div>
-                <div style={{ fontSize: '10px', color: '#7a8ba8' }}>{zoneSummary.best.winRate}% WR · {fmtPnLShort(zoneSummary.best.profit)} · {zoneSummary.best.trades} trades</div>
-              </div>
-              <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>Worst Zone</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#ef4444', marginBottom: '3px' }}>{zoneSummary.worst.label}</div>
-                <div style={{ fontSize: '10px', color: '#7a8ba8' }}>{zoneSummary.worst.winRate}% WR · {fmtPnLShort(zoneSummary.worst.profit)} · {zoneSummary.worst.trades} trades</div>
-              </div>
-              <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>Most Active</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '3px' }}>{zoneSummary.mostActive.label}</div>
-                <div style={{ fontSize: '10px', color: '#7a8ba8' }}>{zoneSummary.mostActive.trades} trades — highest volume</div>
-              </div>
-              <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>
-                  ${Math.round(zoneSummary.worst.min / 100) * 100 === zoneSummary.worst.min
-                    ? '$' + zoneSummary.worst.min.toLocaleString()
-                    : zoneSummary.worst.label} Trap
-                </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#f59e0b', marginBottom: '3px' }}>⚠️ Key Insight</div>
-                <div style={{ fontSize: '10px', color: '#7a8ba8' }}>
-                  {zoneSummary.worst.label} = {zoneSummary.worst.winRate}% WR danger zone.
-                  {(() => {
-                    const roundUp = zones.find(z => z.min === zoneSummary.worst.max + 1)
-                    return roundUp && roundUp.winRate > 70
-                      ? ` Breakthrough to ${roundUp.label} = ${roundUp.winRate}% WR.`
-                      : ' Watch for breakout above.'
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* 3 Rules */}
-            <div style={{ background: '#0c1424', border: '1px solid rgba(8,145,178,0.145)', borderRadius: '12px', padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <div style={{ fontSize: '9px', color: '#0891b2', letterSpacing: '0.12em', fontWeight: 700 }}>
-                  {rules.length} RULES FROM ZONE DATA
-                </div>
-                <button onClick={generateAiRules} disabled={fetchingRules} className="action-btn" style={{
-                  fontSize: '9px', padding: '3px 10px', borderRadius: '5px', fontFamily: 'inherit',
-                  border: '1px solid rgba(8,145,178,0.3)', background: 'rgba(8,145,178,0.08)', color: '#0891b2',
-                  cursor: fetchingRules ? 'not-allowed' : 'pointer',
-                }}>
-                  {fetchingRules ? '⏳ Generating...' : '🤖 AI Refresh'}
-                </button>
-              </div>
-
-              {fetchingRules && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0891b2', fontSize: '12px', padding: '10px 0' }}>
-                  <div style={{ width: '14px', height: '14px', border: '2px solid #0891b2', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  Analysing zone patterns...
-                </div>
-              )}
-
-              {!fetchingRules && rules.map((rule, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: '10px',
-                  paddingBottom: i < rules.length - 1 ? '10px' : 0,
-                  marginBottom: i < rules.length - 1 ? '10px' : 0,
-                  borderBottom: i < rules.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                }}>
-                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(8,145,178,0.125)', color: '#0891b2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
-                    {i + 1}
-                  </div>
+        {/* ── ZONE DETAIL VIEW when a zone is selected ── */}
+        {selectedZone && (() => {
+          const zone = selectedZone
+          const status = getZoneStatus(zone.winRate, zone.trades, zone.profit)
+          if (!status) return null
+          return (
+            <div style={{ animation: 'fadeIn 0.2s ease' }}>
+              {/* Zone header card */}
+              <div style={{
+                background: zone.profit >= 0 ? 'rgba(16,185,129,0.07)' : 'rgba(239,68,68,0.07)',
+                border: `2px solid ${zone.profit >= 0 ? 'rgba(16,185,129,0.208)' : 'rgba(239,68,68,0.208)'}`,
+                borderRadius: '12px', padding: '18px', marginBottom: '14px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#e8edf5', marginBottom: '3px' }}>{rule.title}</div>
-                    <div style={{ fontSize: '10px', color: '#7a8ba8', lineHeight: 1.7 }}>{rule.body}</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 800, color: '#e8edf5', marginBottom: '4px' }}>{zone.label}</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '15px', background: status.color, color: '#fff', fontSize: '11px', fontWeight: 700 }}>
+                      {status.icon} {status.label}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'TOTAL TRADES', value: zone.trades, color: '#e8edf5' },
+                      { label: 'WIN RATE', value: zone.winRate + '%', color: zone.winRate >= 60 ? '#10b981' : zone.winRate >= 40 ? '#f59e0b' : '#ef4444' },
+                      { label: 'NET P&L', value: fmtPnL(zone.profit), color: zone.profit >= 0 ? '#10b981' : '#ef4444' },
+                      { label: 'WINS', value: zone.wins, color: '#10b981' },
+                      { label: 'LOSSES', value: zone.losses, color: '#ef4444' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '8px', color: '#3d4f6a', letterSpacing: '0.1em' }}>{label}</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 800, color }}>{value}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+                <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '11px', color: '#7a8ba8', lineHeight: 1.7 }}>
+                  {status.label === 'STRONG PROFIT'
+                    ? 'This is one of your best zones. When EA places pending orders here, historical data strongly supports letting them run.'
+                    : status.label === 'PROFIT'
+                    ? 'This zone shows consistent profitability. EA performs well here — consider holding positions through to TP.'
+                    : status.label === 'DANGER'
+                    ? 'High-risk zone — EA struggles here. Consider skipping or reducing lot size when gold is trading at these levels.'
+                    : status.label === 'CAUTION'
+                    ? 'Mixed results in this zone. Watch price action carefully before letting EA run freely here.'
+                    : status.label === 'EXHAUSTED'
+                    ? 'Zone shows high WR but eroding P&L — lot sizes may be too small or the edge is fading. Monitor closely.'
+                    : 'Limited data available. Early results are noted but more trades needed before drawing conclusions.'}
+                </div>
+              </div>
 
-        {/* Empty state */}
-        {!zoneSummary && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80%', color: '#3d4f6a', textAlign: 'center', gap: '12px' }}>
-            <div style={{ fontSize: '40px' }}>🗺️</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: '#7a8ba8' }}>Not enough zone data yet</div>
-            <div style={{ fontSize: '11px', lineHeight: 1.7, maxWidth: '260px' }}>Need at least 4 trades in a zone to calculate statistics. Upload more CSV data to build zone history.</div>
-          </div>
+              {/* Full trade table */}
+              <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.12em', marginBottom: '12px' }}>
+                  INDIVIDUAL TRADES IN THIS ZONE
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 90px 80px', gap: 0 }}>
+                  {['DATE', 'DIRECTION', 'OPEN PRICE', 'P&L'].map(h => (
+                    <div key={h} style={{ fontSize: '8px', color: '#3d4f6a', padding: '4px 6px', borderBottom: '1px solid rgba(255,255,255,0.06)', letterSpacing: '0.08em' }}>{h}</div>
+                  ))}
+                  {[...zone.tradeList].sort((a, b) => {
+                    const da = a.closeDate || a.openDate
+                    const db = b.closeDate || b.openDate
+                    const ta = da instanceof Date ? da.getTime() : new Date(da || 0).getTime()
+                    const tb = db instanceof Date ? db.getTime() : new Date(db || 0).getTime()
+                    return tb - ta
+                  }).map((t, i) => {
+                    const d = t.closeDate || t.openDate
+                    const dateStr = d instanceof Date
+                      ? d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                      : (t.date || '')
+                    const isBuy = (t.action || '').toLowerCase() === 'buy'
+                    const isWin = t.profit > 0
+                    return (
+                      <React.Fragment key={i}>
+                        <div style={{ fontSize: '10px', color: '#7a8ba8', padding: '6px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{dateStr}</div>
+                        <div style={{ fontSize: '10px', color: isBuy ? '#10b981' : '#ef4444', padding: '6px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontWeight: 600 }}>{t.action || (isBuy ? 'Buy' : 'Sell')}</div>
+                        <div style={{ fontSize: '10px', color: '#e8edf5', padding: '6px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>${(t.openPrice || 0).toFixed(2)}</div>
+                        <div style={{ fontSize: '10px', color: isWin ? '#10b981' : '#ef4444', padding: '6px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontWeight: 600 }}>{fmtPnL(t.profit)}</div>
+                      </React.Fragment>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <button onClick={() => setSelectedZone(null)} style={{ marginTop: '12px', width: '100%', padding: '10px', borderRadius: '8px', fontSize: '12px', fontFamily: 'inherit', border: '1px solid rgba(255,255,255,0.06)', background: '#111c30', color: '#7a8ba8', cursor: 'pointer' }}>
+                ← Back to Zone Summary
+              </button>
+            </div>
+          )
+        })()}
+
+        {/* ── DEFAULT VIEW (no zone selected) ── */}
+        {!selectedZone && (
+          <>
+            {openOrders.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '4px' }}>Pending Order Scout</div>
+                <div style={{ fontSize: '10px', color: '#7a8ba8', marginBottom: '14px' }}>{openOrders.length} open orders from your CSV — assessed against price zone history</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {openOrders.slice(0, 22).map((order, i) => {
+                    const price = order.openPrice || 0
+                    const bucket = Math.floor(price / 50) * 50
+                    const matchedZone = zones.find(z => z.min === bucket)
+                    const status = matchedZone ? getZoneStatus(matchedZone.winRate, matchedZone.trades, matchedZone.profit) : null
+                    const isBuy = (order.action || order.type || '').toLowerCase().includes('buy')
+                    let cardBg = 'transparent', cardBorder = 'rgba(255,255,255,0.06)'
+                    if (status) {
+                      if (status.label === 'STRONG PROFIT') { cardBg = 'rgba(16,185,129,0.07)'; cardBorder = 'rgba(16,185,129,0.208)' }
+                      else if (status.label === 'PROFIT')   { cardBg = 'rgba(16,185,129,0.03)'; cardBorder = 'rgba(16,185,129,0.145)' }
+                      else if (status.label === 'DANGER')   { cardBg = 'rgba(239,68,68,0.07)';  cardBorder = 'rgba(239,68,68,0.208)' }
+                    }
+                    const zoneLabel = `$${bucket.toLocaleString()}–$${(bucket + 49).toLocaleString()}`
+                    const zoneDesc = matchedZone
+                      ? `${zoneLabel} · ${matchedZone.trades} historical trades · ${matchedZone.winRate}% WR · ${fmtPnL(matchedZone.profit)} net`
+                      : `${zoneLabel} · No historical data for this price level`
+                    const verdictBadge = !matchedZone
+                      ? { bg: '#6366f1', label: ' UNTESTED ZONE', textColor: '#fff' }
+                      : status?.label === 'FRESH'
+                      ? { bg: 'transparent', label: '◇ FRESH', textColor: '#e8edf5' }
+                      : status
+                      ? { bg: status.color, label: `${status.icon} ${status.label}`, textColor: '#fff' }
+                      : null
+                    return (
+                      <div key={i} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '12px', padding: '14px', cursor: 'pointer' }}
+                        onClick={() => matchedZone && setSelectedZone(matchedZone)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                              <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', color: isBuy ? '#10b981' : '#ef4444', background: isBuy ? 'rgba(16,185,129,0.125)' : 'rgba(239,68,68,0.125)' }}>
+                                {isBuy ? 'Buy Stop' : 'Sell Stop'}
+                              </span>
+                              <span style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5' }}>${price.toFixed(2)}</span>
+                              <span style={{ fontSize: '9px', color: '#7a8ba8' }}>{(order.lots || 0.02).toFixed(2)} lots · {order.symbol || 'XAUUSD'}</span>
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#7a8ba8' }}>Zone: {zoneDesc}</div>
+                          </div>
+                          {verdictBadge && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', background: verdictBadge.bg, color: verdictBadge.textColor, fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                              {verdictBadge.label}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '14px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          {order.tp > 0 && <span style={{ fontSize: '9px', color: '#10b981' }}>TP: ${order.tp.toFixed(3)}</span>}
+                          {order.sl > 0 && <span style={{ fontSize: '9px', color: '#ef4444' }}>SL: ${order.sl.toFixed(3)}</span>}
+                          <span style={{ fontSize: '9px', color: '#3d4f6a' }}>Zone history: click to drill down →</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {zoneSummary && (
+              <div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '14px' }}>Zone Summary</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                  <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                    <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>Best Zone</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#10b981', marginBottom: '3px' }}>{zoneSummary.best.label}</div>
+                    <div style={{ fontSize: '10px', color: '#7a8ba8' }}>{zoneSummary.best.winRate}% WR · {fmtPnLShort(zoneSummary.best.profit)} · {zoneSummary.best.trades} trades</div>
+                  </div>
+                  <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                    <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>Worst Zone</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#ef4444', marginBottom: '3px' }}>{zoneSummary.worst.label}</div>
+                    <div style={{ fontSize: '10px', color: '#7a8ba8' }}>{zoneSummary.worst.winRate}% WR · {fmtPnLShort(zoneSummary.worst.profit)} · {zoneSummary.worst.trades} trades</div>
+                  </div>
+                  <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                    <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>Most Active</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#e8edf5', marginBottom: '3px' }}>{zoneSummary.mostActive.label}</div>
+                    <div style={{ fontSize: '10px', color: '#7a8ba8' }}>{zoneSummary.mostActive.trades} trades — highest volume</div>
+                  </div>
+                  <div style={{ background: '#0c1424', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px' }}>
+                    <div style={{ fontSize: '9px', color: '#3d4f6a', letterSpacing: '0.1em', marginBottom: '5px' }}>${(Math.round(zoneSummary.worst.min / 100) * 100).toLocaleString()} Trap</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 800, color: '#f59e0b', marginBottom: '3px' }}>⚠️ Key Insight</div>
+                    <div style={{ fontSize: '10px', color: '#7a8ba8' }}>
+                      {zoneSummary.worst.label} = {zoneSummary.worst.winRate}% WR danger zone.{' '}
+                      {(() => { const above = zones.find(z => z.min === zoneSummary.worst.min + 50); return above && above.winRate > 70 ? `Breakthrough to ${above.label} = ${above.winRate}% WR.` : 'Watch for breakout above.' })()}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ background: '#0c1424', border: '1px solid rgba(8,145,178,0.145)', borderRadius: '12px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '9px', color: '#0891b2', letterSpacing: '0.12em', fontWeight: 700 }}>{rules.length} RULES FROM ZONE DATA</div>
+                    <button onClick={generateAiRules} disabled={fetchingRules} className="action-btn" style={{ fontSize: '9px', padding: '3px 10px', borderRadius: '5px', fontFamily: 'inherit', border: '1px solid rgba(8,145,178,0.3)', background: 'rgba(8,145,178,0.08)', color: '#0891b2', cursor: fetchingRules ? 'not-allowed' : 'pointer' }}>
+                      {fetchingRules ? '⏳ Generating...' : '🤖 AI Refresh'}
+                    </button>
+                  </div>
+                  {fetchingRules && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0891b2', fontSize: '12px', padding: '10px 0' }}>
+                      <div style={{ width: '14px', height: '14px', border: '2px solid #0891b2', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      Analysing zone patterns...
+                    </div>
+                  )}
+                  {!fetchingRules && rules.map((rule, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '10px', paddingBottom: i < rules.length-1 ? '10px' : 0, marginBottom: i < rules.length-1 ? '10px' : 0, borderBottom: i < rules.length-1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                      <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(8,145,178,0.125)', color: '#0891b2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>{i+1}</div>
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#e8edf5', marginBottom: '3px' }}>{rule.title}</div>
+                        <div style={{ fontSize: '10px', color: '#7a8ba8', lineHeight: 1.7 }}>{rule.body}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!zoneSummary && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80%', color: '#3d4f6a', textAlign: 'center', gap: '12px' }}>
+                <div style={{ fontSize: '40px' }}>🗺️</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: '#7a8ba8' }}>Not enough zone data yet</div>
+                <div style={{ fontSize: '11px', lineHeight: 1.7, maxWidth: '260px' }}>Need at least 4 trades in a zone to calculate statistics.</div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
