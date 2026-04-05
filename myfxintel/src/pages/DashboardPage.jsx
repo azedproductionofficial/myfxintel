@@ -26,6 +26,7 @@ export default function DashboardPage({ csvData, setCsvData }) {
   const [uploadError, setUploadError] = useState(null)
   const [csvDeposits, setCsvDeposits] = useState([])
   const [csvWithdrawals, setCsvWithdrawals] = useState([])
+  const [csvOpenOrders, setCsvOpenOrders] = useState([])
   const fileRef = useRef()
 
   const handleFile = async (file) => {
@@ -41,6 +42,7 @@ export default function DashboardPage({ csvData, setCsvData }) {
         setCsvData(result.trades)
         setCsvDeposits(result.deposits || [])
         setCsvWithdrawals(result.withdrawals || [])
+        setCsvOpenOrders(result.openOrders || [])
         setUploadInfo({ count: result.count, format: result.format, filename: file.name })
       }
     } catch (e) {
@@ -160,7 +162,7 @@ export default function DashboardPage({ csvData, setCsvData }) {
             {activeTab === 'analytics' && <AnalyticsTab trades={csvData} deposits={csvDeposits} withdrawals={csvWithdrawals} filename={uploadInfo?.filename} />}
             {activeTab === 'news' && <NewsTab />}
             {activeTab === 'scanner' && <LiveScannerTab />}
-            {activeTab === 'zones' && <ZonesTab trades={csvData} />}
+            {activeTab === 'zones' && <ZonesTab trades={csvData} openOrders={csvOpenOrders} />}
           </main>
         )}
       </div>
